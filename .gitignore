@@ -41,8 +41,13 @@ outputs/
 thumbs/
 *.npy
 clusters.json
+clusters_*.json
 embeddings.npy
 meta.json
+
+# Cache directories
+.cache/
+.raw_clusterer_cache/
 
 # Test data
 test_data/

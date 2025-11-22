@@ -8,8 +8,10 @@ from src.application.use_cases.extract_features import ExtractFeatures
 from src.application.use_cases.generate_thumbnails import GenerateThumbnails
 from src.application.use_cases.organize_raw_images import OrganizeRawImages
 from src.application.use_cases.update_xmp_metadata import UpdateXmpMetadata
+from src.infrastructure.cache.cache_manager import CacheManager
 from src.infrastructure.converters.raw_to_jpeg_converter import RawToJpegConverter
 from src.infrastructure.ml.clustering.kmeans_clusterer import KMeansClusterer
+from src.infrastructure.ml.clustering.hdbscan_clusterer import HDBSCANClusterer
 from src.infrastructure.ml.models.resnet_model import ResNet50FeatureExtractor
 from src.infrastructure.repositories.file_raw_image_repository import (
     FileRawImageRepository,
@@ -43,7 +45,7 @@ class OrganizeCommand:
         """
         # 設定を作成
         config = AppConfig.from_args(args)
-        target_directory = Path(args.directory)
+        target_directory = Path(args.directory).resolve()
 
         # ディレクトリの検証
         if not target_directory.exists():
@@ -54,12 +56,15 @@ class OrganizeCommand:
             ConsolePresenter.show_error(f"Path is not a directory: {target_directory}")
             return
 
-        # 出力ディレクトリの設定
-        output_dir = Path(args.output) if hasattr(args, "output") and args.output else config.output_dir
-        output_dir.mkdir(parents=True, exist_ok=True)
+        # キャッシュディレクトリの設定
+        cache_dir = Path(args.output) if hasattr(args, "output") and args.output else target_directory / ".cache"
 
-        # サムネイル出力ディレクトリ
-        thumbnail_dir = output_dir / "thumbs"
+        # キャッシュマネージャーの初期化
+        cache_manager = CacheManager(base_dir=target_directory, cache_dir=cache_dir)
+        cache_manager.initialize()
+
+        # 出力ディレクトリはキャッシュディレクトリと同じ
+        output_dir = cache_dir
 
         # 依存性の構築
         # Repositories
@@ -71,18 +76,34 @@ class OrganizeCommand:
 
         # Infrastructure
         converter = RawToJpegConverter(
-            output_dir=thumbnail_dir,
             size=config.thumbnail_size,
-            base_dir=target_directory,
+            cache_manager=cache_manager,
         )
         feature_extractor = ResNet50FeatureExtractor(device="cpu")
 
-        # クラスタ数の設定
-        n_clusters_fine = getattr(args, "clusters_fine", config.num_clusters)
-        n_clusters_coarse = getattr(args, "clusters_coarse", config.num_clusters // 2)
+        # クラスタリングアルゴリズムの選択
+        algorithm = getattr(args, "algorithm", "hdbscan")
 
-        clusterer_fine = KMeansClusterer(n_clusters=n_clusters_fine, random_state=42)
-        clusterer_coarse = KMeansClusterer(n_clusters=n_clusters_coarse, random_state=42)
+        if algorithm == "kmeans":
+            # KMeans: クラスタ数を指定
+            n_clusters_fine = getattr(args, "clusters_fine", config.num_clusters)
+            n_clusters_coarse = getattr(args, "clusters_coarse", config.num_clusters // 2)
+            clusterer_fine = KMeansClusterer(n_clusters=n_clusters_fine, random_state=42)
+            clusterer_coarse = KMeansClusterer(n_clusters=n_clusters_coarse, random_state=42)
+        else:
+            # HDBSCAN: 自動的にクラスタ数を決定
+            min_cluster_size = getattr(args, "min_cluster_size", 5)
+            min_samples = getattr(args, "min_samples", 3)
+            # Fine: より小さいクラスタサイズで詳細に分割
+            clusterer_fine = HDBSCANClusterer(
+                min_cluster_size=min_cluster_size,
+                min_samples=min_samples,
+            )
+            # Coarse: より大きいクラスタサイズで粗く分割
+            clusterer_coarse = HDBSCANClusterer(
+                min_cluster_size=min_cluster_size * 2,
+                min_samples=min_samples,
+            )
 
         # Use Cases
         generate_thumbnails = GenerateThumbnails(
@@ -100,6 +121,7 @@ class OrganizeCommand:
             cluster_images_fine,
             cluster_images_coarse,
             update_xmp,
+            cache_manager=cache_manager,
         )
 
         # 実行

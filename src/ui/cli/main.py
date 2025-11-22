@@ -14,17 +14,17 @@ def main() -> None:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # 基本的な使い方
+  # 基本的な使い方（HDBSCANで自動クラスタリング）
   %(prog)s /path/to/raw_images
 
-  # オプションを指定
-  %(prog)s /path/to/raw_images --size 512 --clusters-fine 50 --clusters-coarse 10
+  # KMeansでクラスタ数を指定
+  %(prog)s /path/to/raw_images --algorithm kmeans --clusters-fine 50 --clusters-coarse 10
+
+  # HDBSCANのパラメータを調整
+  %(prog)s /path/to/raw_images --algorithm hdbscan --min-cluster-size 10 --min-samples 5
 
   # Dry runモード（XMPを書き込まない）
   %(prog)s /path/to/raw_images --dry-run
-
-  # 出力先を指定
-  %(prog)s /path/to/raw_images --output /path/to/output
         """,
     )
 
@@ -45,22 +45,42 @@ Examples:
     parser.add_argument(
         "--output",
         type=str,
-        default=str(AppConfig.DEFAULT_OUTPUT_DIR),
-        help=f"Output directory (default: {AppConfig.DEFAULT_OUTPUT_DIR})",
+        help="Output directory for cache files (optional, defaults to .raw_clusterer_cache in input directory)",
+    )
+    parser.add_argument(
+        "--algorithm",
+        type=str,
+        default="hdbscan",
+        choices=["kmeans", "hdbscan"],
+        help="Clustering algorithm to use (default: hdbscan)",
     )
     parser.add_argument(
         "--clusters-fine",
         type=int,
         default=AppConfig.DEFAULT_NUM_CLUSTERS,
         dest="clusters_fine",
-        help=f"Number of clusters for fine granularity (default: {AppConfig.DEFAULT_NUM_CLUSTERS})",
+        help=f"Number of clusters for fine granularity (default: {AppConfig.DEFAULT_NUM_CLUSTERS}, only used with kmeans)",
     )
     parser.add_argument(
         "--clusters-coarse",
         type=int,
         default=AppConfig.DEFAULT_NUM_CLUSTERS // 2,
         dest="clusters_coarse",
-        help=f"Number of clusters for coarse granularity (default: {AppConfig.DEFAULT_NUM_CLUSTERS // 2})",
+        help=f"Number of clusters for coarse granularity (default: {AppConfig.DEFAULT_NUM_CLUSTERS // 2}, only used with kmeans)",
+    )
+    parser.add_argument(
+        "--min-cluster-size",
+        type=int,
+        default=5,
+        dest="min_cluster_size",
+        help="Minimum cluster size for HDBSCAN (default: 5, only used with hdbscan)",
+    )
+    parser.add_argument(
+        "--min-samples",
+        type=int,
+        default=3,
+        dest="min_samples",
+        help="Minimum samples for HDBSCAN (default: 3, only used with hdbscan)",
     )
     parser.add_argument(
         "--dry-run",
