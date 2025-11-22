@@ -1,11 +1,49 @@
 #!/bin/bash
 # RAW Clusterer CLI wrapper script
 
-# このスクリプトのディレクトリを取得
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+# 実行時のカレントディレクトリを保存（相対パスを絶対パスに変換するため）
+ORIGINAL_PWD="$PWD"
+
+# シンボリックリンクを解決して実際のスクリプトのディレクトリを取得
+SOURCE="${BASH_SOURCE[0]}"
+while [ -h "$SOURCE" ]; do
+    DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
+    SOURCE="$(readlink "$SOURCE")"
+    [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE"
+done
+SCRIPT_DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
+
 # プロジェクトルートディレクトリ
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 
-# プロジェクトディレクトリに移動してuvを使用してPythonプログラムを実行
+# 引数を処理：位置引数（directory）と--outputの値を絶対パスに変換
+ARGS=()
+NEXT_IS_OUTPUT=false
+
+for arg in "$@"; do
+    if [[ "$NEXT_IS_OUTPUT" == true ]]; then
+        # --outputの値を処理
+        if [[ "$arg" != /* ]]; then
+            arg="$ORIGINAL_PWD/$arg"
+        fi
+        NEXT_IS_OUTPUT=false
+    elif [[ "$arg" == "--output" ]]; then
+        NEXT_IS_OUTPUT=true
+    elif [[ "$arg" != -* ]] && [[ ${#ARGS[@]} -eq 0 ]]; then
+        # 最初の位置引数（directory）を処理
+        if [[ "$arg" != /* ]]; then
+            arg="$ORIGINAL_PWD/$arg"
+        fi
+    fi
+    ARGS+=("$arg")
+done
+
+# プロジェクトディレクトリに移動
 cd "$PROJECT_DIR" || exit 1
-exec uv run python -m src.ui.cli.main "$@"
+
+# .venvが存在する場合はそれを使用、なければuv runを使用
+if [ -d ".venv" ]; then
+    exec .venv/bin/python -m src.ui.cli.main "${ARGS[@]}"
+else
+    exec uv run python -m src.ui.cli.main "${ARGS[@]}"
+fi
