@@ -37,8 +37,9 @@ class AppConfig:
         Returns:
             アプリケーション設定
         """
+        output = getattr(args, "output", None)
         return cls(
             thumbnail_size=getattr(args, "size", cls.DEFAULT_THUMBNAIL_SIZE),
-            output_dir=Path(getattr(args, "output", cls.DEFAULT_OUTPUT_DIR)),
+            output_dir=Path(output) if output else cls.DEFAULT_OUTPUT_DIR,
             num_clusters=getattr(args, "clusters", cls.DEFAULT_NUM_CLUSTERS),
         )

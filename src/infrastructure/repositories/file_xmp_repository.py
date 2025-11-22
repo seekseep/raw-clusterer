@@ -63,8 +63,7 @@ class FileXmpRepository(XmpRepository):
                 hierarchical_keywords=hierarchical_keywords,
             )
 
-        except Exception as e:
-            print(f"Failed to load XMP: {xmp_path}, error: {e}")
+        except Exception:
             return None
 
     def save(self, xmp_metadata: XmpMetadata) -> None:
@@ -75,14 +74,22 @@ class FileXmpRepository(XmpRepository):
         """
         xmp_path = xmp_metadata.xmp_path
 
-        # 新しいXMPファイルを作成
-        root = self._create_xmp_root(xmp_metadata)
-        tree = ET.ElementTree(root)
+        try:
+            # 新しいXMPファイルを作成
+            root = self._create_xmp_root(xmp_metadata)
 
-        # XMLファイルとして保存
-        tree.write(
-            xmp_path, encoding="utf-8", xml_declaration=True, method="xml"
-        )
+            # インデントを追加（Lightroomが読めるように）
+            ET.indent(root, space=" ", level=0)
+
+            # XML文字列を生成（XML宣言なし、Lightroom互換）
+            xml_string = ET.tostring(root, encoding="unicode", method="xml")
+
+            # ファイルに書き込み
+            with open(xmp_path, "w", encoding="utf-8") as f:
+                f.write(xml_string)
+                f.write("\n")  # 最後に改行を追加
+        except Exception as e:
+            raise Exception(f"Failed to save XMP: {xmp_path}") from e
 
     def exists(self, xmp_path: Path) -> bool:
         """XMPファイルが存在するか確認
@@ -95,26 +102,6 @@ class FileXmpRepository(XmpRepository):
         """
         return xmp_path.exists()
 
-    def merge_and_save(self, xmp_metadata: XmpMetadata) -> None:
-        """既存のXMPファイルとマージして保存
-
-        Args:
-            xmp_metadata: マージするXMPメタデータ
-        """
-        xmp_path = xmp_metadata.xmp_path
-
-        if self.exists(xmp_path):
-            # 既存のXMPを読み込んでマージ
-            existing = self.load(xmp_path)
-            if existing:
-                # キーワードをマージ
-                xmp_metadata.keywords.update(existing.keywords)
-                xmp_metadata.hierarchical_keywords.update(
-                    existing.hierarchical_keywords
-                )
-
-        # 保存
-        self.save(xmp_metadata)
 
     def _extract_keywords(self, root: ET.Element) -> Set[str]:
         """XMPからキーワードを抽出

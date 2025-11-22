@@ -1,13 +1,60 @@
 """XMPメタデータ更新ユースケース"""
 
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Optional, Tuple
 
 from src.application.dto.cluster_result import ClusterResult
 from src.domain.models.raw_image import RawImage
 from src.domain.models.xmp_metadata import XmpMetadata
 from src.domain.repositories.raw_image_repository import RawImageRepository
 from src.domain.repositories.xmp_repository import XmpRepository
+
+
+def _update_single_xmp(
+    raw_image_path: Path,
+    directory: Path,
+    tags: List[str],
+    dry_run: bool
+) -> Tuple[str, bool, int]:
+    """単一のXMPファイルを更新（並列処理用）
+
+    Args:
+        raw_image_path: RAW画像のパス
+        directory: ベースディレクトリ
+        tags: 追加するタグのリスト
+        dry_run: ドライランモード
+
+    Returns:
+        (ファイル名, 成功/失敗, タグ数)
+    """
+    from src.infrastructure.repositories.file_xmp_repository import FileXmpRepository
+
+    try:
+        raw_image = RawImage(raw_image_path)
+        xmp_path = raw_image_path.with_suffix(".xmp")
+        xmp_repository = FileXmpRepository()
+
+        # LOAD: 既存のXMPがあれば読み込む
+        existing_xmp = xmp_repository.load(xmp_path) if xmp_path.exists() else None
+
+        # UPDATE: 既存のXMPにタグを追加、なければ新規作成
+        if existing_xmp:
+            xmp_metadata = existing_xmp
+            xmp_metadata.add_keywords_from_tags(tags)
+        else:
+            xmp_metadata = XmpMetadata(raw_image=raw_image)
+            xmp_metadata.add_keywords_from_tags(tags)
+
+        # SAVE: ドライランでなければ保存
+        if not dry_run:
+            xmp_repository.save(xmp_metadata)
+            return (raw_image.filename, True, len(tags))
+        else:
+            return (raw_image.filename, False, len(tags))
+
+    except Exception as e:
+        return (str(raw_image_path), False, 0)
 
 
 class UpdateXmpMetadata:
@@ -33,7 +80,7 @@ class UpdateXmpMetadata:
         cluster_results: List[ClusterResult],
         dry_run: bool = False,
     ) -> int:
-        """クラスタリング結果をXMPメタデータとして書き込む
+        """クラスタリング結果をXMPメタデータとして書き込む（並列処理）
 
         Args:
             directory: RAW画像が格納されているディレクトリ
@@ -43,13 +90,13 @@ class UpdateXmpMetadata:
         Returns:
             更新したXMPファイルの数
         """
-        print(f"\nUpdating XMP metadata...")
-        print(f"Directory: {directory}")
-        print(f"Dry run: {dry_run}")
+        import multiprocessing
+        import os
+
+        print(f"\nUpdating XMP metadata (next to RAW files)...")
 
         # RAW画像を取得
         raw_images = self._raw_repository.find_all(directory)
-        print(f"Found {len(raw_images)} RAW images")
 
         # 画像IDからタグへのマッピングを統合
         image_to_tags: Dict[str, List[str]] = {}
@@ -59,40 +106,56 @@ class UpdateXmpMetadata:
                     image_to_tags[image_id] = []
                 image_to_tags[image_id].extend(tags)
 
-        # 各RAW画像のXMPを更新
-        updated_count = 0
-        for i, raw_image in enumerate(raw_images, 1):
-            # 画像IDを取得（ファイル名のstem）
-            image_id = raw_image.stem
+        # 並列処理用のタスクリストを作成
+        tasks = []
+        for raw_image in raw_images:
+            # 画像IDを取得（相対パスまたはstem）
+            try:
+                relative_path = raw_image.path.relative_to(directory)
+                image_id = str(relative_path.with_suffix("")).replace("\\", "/")
+            except ValueError:
+                image_id = raw_image.stem
 
-            # このRAW画像に対応するタグを取得
             tags = image_to_tags.get(image_id, [])
+            if tags:
+                tasks.append((raw_image.path, directory, tags, dry_run))
 
-            if not tags:
-                print(f"  [{i}/{len(raw_images)}] {raw_image.filename}: No tags, skipping")
-                continue
+        if not tasks:
+            print("\nNo files to update")
+            return 0
 
-            # XMPメタデータを作成
-            xmp_metadata = XmpMetadata(raw_image=raw_image)
-            xmp_metadata.add_keywords_from_tags(tags)
+        # CPU数に基づいてワーカー数を決定
+        max_workers = min(multiprocessing.cpu_count(), len(tasks))
 
-            if dry_run:
-                print(
-                    f"  [{i}/{len(raw_images)}] {raw_image.filename}: "
-                    f"Would add {len(tags)} tags (dry run)"
-                )
-            else:
-                # 既存のXMPとマージして保存
-                self._xmp_repository.merge_and_save(xmp_metadata)
-                updated_count += 1
-                print(
-                    f"  [{i}/{len(raw_images)}] {raw_image.filename}: "
-                    f"Updated with {len(tags)} tags"
-                )
+        # 並列処理でXMPファイルを更新
+        updated_count = 0
+        completed = 0
+        total = len(tasks)
+
+        with ProcessPoolExecutor(max_workers=max_workers) as executor:
+            # タスクを投入
+            future_to_task = {
+                executor.submit(_update_single_xmp, *task): task
+                for task in tasks
+            }
+
+            # 完了したタスクから処理
+            for future in as_completed(future_to_task):
+                filename, success, tag_count = future.result()
+                completed += 1
+
+                if dry_run:
+                    print(f"  [{completed}/{total}] {filename}: Would add {tag_count} tags")
+                else:
+                    if success:
+                        updated_count += 1
+                        print(f"  [{completed}/{total}] {filename}: Added {tag_count} tags")
+                    else:
+                        print(f"  [{completed}/{total}] {filename}: Failed to update")
 
         if not dry_run:
-            print(f"\nSuccessfully updated {updated_count} XMP files")
+            print(f"\nUpdated {updated_count} XMP files")
         else:
-            print(f"\nWould update {len([img for img in raw_images if img.stem in image_to_tags])} XMP files (dry run)")
+            print(f"\nWould update {len(tasks)} XMP files")
 
         return updated_count

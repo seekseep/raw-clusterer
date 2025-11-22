@@ -8,6 +8,7 @@ from src.application.use_cases.cluster_images import ClusterImages
 from src.application.use_cases.extract_features import ExtractFeatures
 from src.application.use_cases.generate_thumbnails import GenerateThumbnails
 from src.application.use_cases.update_xmp_metadata import UpdateXmpMetadata
+from src.infrastructure.cache.cache_manager import CacheManager
 from src.ui.cli.presenters.console_presenter import ConsolePresenter
 
 
@@ -20,6 +21,7 @@ class OrganizeRawImages:
     3. クラスタリング（詳細度1: Fine）
     4. クラスタリング（詳細度2: Coarse）
     5. XMPメタデータ更新
+    6. キャッシュクリーンアップ
     """
 
     def __init__(
@@ -29,6 +31,7 @@ class OrganizeRawImages:
         cluster_images_fine: ClusterImages,
         cluster_images_coarse: ClusterImages,
         update_xmp: UpdateXmpMetadata,
+        cache_manager: Optional[CacheManager] = None,
     ) -> None:
         """RAW画像整理ユースケースを初期化
 
@@ -38,12 +41,14 @@ class OrganizeRawImages:
             cluster_images_fine: クラスタリングユースケース（詳細度1: Fine）
             cluster_images_coarse: クラスタリングユースケース（詳細度2: Coarse）
             update_xmp: XMP更新ユースケース
+            cache_manager: キャッシュマネージャー
         """
         self._generate_thumbnails = generate_thumbnails
         self._extract_features = extract_features
         self._cluster_images_fine = cluster_images_fine
         self._cluster_images_coarse = cluster_images_coarse
         self._update_xmp = update_xmp
+        self._cache_manager = cache_manager
 
     def execute(
         self,
@@ -126,17 +131,5 @@ class OrganizeRawImages:
         print(f"  詳細度1クラスタ数: {result_fine.num_clusters}")
         print(f"  詳細度2クラスタ数: {result_coarse.num_clusters}")
         print(f"  XMPファイル: {updated_count}個")
-
-        print(f"\n📁 出力ファイル:")
-        print(f"  クラスタ（Fine）: {cluster_file_fine}")
-        print(f"  クラスタ（Coarse）: {cluster_file_coarse}")
-        print(f"  埋め込みベクトル: {output_dir}/embeddings.npy")
-        print(f"  メタデータ: {output_dir}/meta.json")
-
-        if not dry_run:
-            print(f"\n💡 次のステップ:")
-            print(f"  1. Lightroom Classicを開く")
-            print(f"  2. メタデータ → メタデータをファイルから読み込み")
-            print(f"  3. キーワードリストでAI/clusterを確認")
 
         return [result_fine, result_coarse]

@@ -42,15 +42,3 @@ class XmpRepository(ABC):
             存在する場合True
         """
         pass
-
-    @abstractmethod
-    def merge_and_save(self, xmp_metadata: XmpMetadata) -> None:
-        """既存のXMPファイルとマージして保存
-
-        既存のXMPファイルがある場合はキーワードをマージ、
-        ない場合は新規作成
-
-        Args:
-            xmp_metadata: マージするXMPメタデータ
-        """
-        pass

@@ -8,24 +8,25 @@ from PIL import Image
 
 from src.domain.models.raw_image import RawImage
 from src.domain.models.thumbnail import Thumbnail
+from src.infrastructure.cache.cache_manager import CacheManager
 
 
 class RawToJpegConverter:
     """RAW画像をJPEGサムネイルに変換するクラス"""
 
     def __init__(
-        self, output_dir: Path, size: int = 512, base_dir: Optional[Path] = None
+        self,
+        size: int = 512,
+        cache_manager: Optional[CacheManager] = None,
     ) -> None:
         """RAW→JPEG変換器を初期化
 
         Args:
-            output_dir: サムネイル出力先ディレクトリ
             size: サムネイルの長辺サイズ（ピクセル）
-            base_dir: 元のRAW画像のベースディレクトリ（相対パス計算用）
+            cache_manager: キャッシュマネージャー（指定時は.cache/thumbnailsに出力）
         """
-        self._output_dir = output_dir
         self._size = size
-        self._base_dir = base_dir
+        self._cache_manager = cache_manager
 
     def convert(self, raw_image: RawImage) -> Optional[Thumbnail]:
         """RAW画像をJPEGサムネイルに変換
@@ -50,6 +51,12 @@ class RawToJpegConverter:
             output_path.parent.mkdir(parents=True, exist_ok=True)
             img.save(output_path, "JPEG", quality=85, optimize=True)
 
+            # キャッシュマネージャーがある場合はマッピングを記録
+            if self._cache_manager:
+                self._cache_manager.add_raw_thumbnail_mapping(
+                    raw_image.path, output_path
+                )
+
             return Thumbnail(path=output_path, source=raw_image, size=self._size)
 
         except Exception as e:
@@ -65,17 +72,21 @@ class RawToJpegConverter:
         Returns:
             サムネイルの出力パス
         """
-        if self._base_dir:
-            # ベースディレクトリからの相対パスを計算
+        if self._cache_manager:
+            # キャッシュマネージャーがある場合は.cache/thumbnailsに出力
+            base_dir = self._cache_manager.base_dir
+            output_dir = self._cache_manager.thumbnails_dir
+
             try:
-                relative_path = raw_image.path.relative_to(self._base_dir)
+                # ベースディレクトリからの相対パスを計算
+                relative_path = raw_image.path.relative_to(base_dir)
                 # 拡張子をjpgに変更
                 output_relative_path = relative_path.with_suffix(".jpg")
-                return self._output_dir / output_relative_path
+                return output_dir / output_relative_path
             except ValueError:
-                # relative_to が失敗した場合はファイル名のみ使用
-                pass
-
-        # ベースディレクトリが指定されていない場合はファイル名のみ
-        thumbnail_filename = raw_image.stem + ".jpg"
-        return self._output_dir / thumbnail_filename
+                # relative_toが失敗した場合はファイル名のみ使用
+                thumbnail_filename = raw_image.stem + ".jpg"
+                return output_dir / thumbnail_filename
+        else:
+            # 後方互換性のため、キャッシュマネージャーがない場合の動作を残す
+            raise ValueError("CacheManager is required for RawToJpegConverter")

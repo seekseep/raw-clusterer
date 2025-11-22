@@ -35,7 +35,7 @@ class XmpMetadata:
     @property
     def xmp_path(self) -> Path:
         """XMPファイルのパスを取得"""
-        return self.raw_image.path.with_suffix(".xmp")
+        return self.raw_image.path.with_suffix(".XMP")
 
     def add_keyword(self, keyword: str) -> None:
         """キーワードを追加
