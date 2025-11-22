@@ -12,7 +12,8 @@
       "Bash(for i in {762..793})",
       "Bash(do cp \"/Users/seekseep/Pictures/レタッチ/20251112_兵庫前期/DSC00$i.ARW\" test_data/raw_images/)",
       "Bash(chmod:*)",
-      "Bash(./bin/raw-clusterer:*)"
+      "Bash(./bin/raw-clusterer:*)",
+      "Bash(/Users/seekseep/Development/github.com/seekseep/raw-clusterer/bin/raw-clusterer --help)"
     ],
     "deny": [],
     "ask": []
