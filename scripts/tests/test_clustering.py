@@ -24,7 +24,7 @@ from src.infrastructure.repositories.numpy_embedding_repository import (
 from src.ui.cli.presenters.console_presenter import ConsolePresenter
 
 # 検証用ディレクトリ（最初の10枚のみテスト）
-RAW_DIR = Path("/Users/seekseep/Pictures/レタッチ/20251112_兵庫前期")
+RAW_DIR = Path("test_data/raw_images")
 OUTPUT_BASE = Path("outputs/test_clustering")
 THUMBNAIL_DIR = OUTPUT_BASE / "thumbs"
 EMBEDDING_DIR = OUTPUT_BASE

@@ -212,3 +212,95 @@ raw-clusterer/
 - CLIインターフェースの実装
 - ユーザー入力の受付と出力の整形
 - Applicationレイヤーへの処理依頼
+
+---
+
+## 使用方法
+
+### インストール
+
+```bash
+# 依存関係のインストール
+uv sync
+
+# 開発用依存関係も含める場合
+uv sync --extra dev
+```
+
+### 基本的な使い方
+
+```bash
+# RAW画像が含まれるディレクトリを指定
+uv run python -m src.ui.cli.main /path/to/raw_images
+```
+
+### オプション
+
+```bash
+# サムネイルサイズを指定（デフォルト: 512px）
+uv run python -m src.ui.cli.main /path/to/raw_images --size 512
+
+# クラスタ数を指定
+uv run python -m src.ui.cli.main /path/to/raw_images \
+  --clusters-fine 50 \    # 詳細度1のクラスタ数（デフォルト: 50）
+  --clusters-coarse 25    # 詳細度2のクラスタ数（デフォルト: 25）
+
+# 出力先を指定
+uv run python -m src.ui.cli.main /path/to/raw_images --output /path/to/output
+
+# Dry runモード（XMPファイルを実際には書き込まない）
+uv run python -m src.ui.cli.main /path/to/raw_images --dry-run
+```
+
+### 処理フロー
+
+1. **サムネイル生成**: RAW画像をJPEG（512px）に変換
+2. **特徴抽出**: ResNet50で2048次元の特徴ベクトルを抽出
+3. **クラスタリング（詳細度1）**: ほぼ同じ被写体を細かく分類
+4. **クラスタリング（詳細度2）**: 同じ場所・似た被写体を粗く分類
+5. **XMP生成**: RAW画像と同階層にXMPファイルを作成
+
+### 出力ファイル
+
+```
+/path/to/raw_images/
+├── DSC00001.ARW        # 元のRAW画像
+├── DSC00001.xmp        # ← 生成されたXMPファイル
+├── DSC00002.ARW
+├── DSC00002.xmp
+└── ...
+
+outputs/ (または --output で指定したディレクトリ)
+├── thumbs/             # サムネイル画像
+│   ├── DSC00001.jpg
+│   └── ...
+├── embeddings.npy      # 特徴ベクトル
+├── meta.json           # メタデータ
+├── clusters_fine.json  # 詳細度1のクラスタ結果
+└── clusters_coarse.json # 詳細度2のクラスタ結果
+```
+
+### Lightroomでの使用
+
+1. Lightroom Classicを開く
+2. XMPファイルが生成されたディレクトリをカタログに追加
+3. メニューから **メタデータ → メタデータをファイルから読み込み** を選択
+4. キーワードリストで **AI/cluster** を確認
+   - `AI/cluster/fine/001`, `AI/cluster/fine/002`, ...
+   - `AI/cluster/coarse/001`, `AI/cluster/coarse/002`, ...
+5. キーワードで絞り込んで似た写真をまとめて確認・選別
+
+### テスト
+
+```bash
+# テストデータのセットアップ（32枚のRAW画像をコピー）
+uv run python scripts/setup_test_data.py
+
+# フルパイプラインテスト
+uv run python scripts/tests/test_full_pipeline.py
+
+# XMP生成テスト
+uv run python scripts/tests/test_xmp_generation.py
+```
+
+詳細は[scripts/README.md](scripts/README.md)を参照してください。

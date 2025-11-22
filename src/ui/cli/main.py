@@ -2,31 +2,45 @@
 
 import argparse
 import sys
-from pathlib import Path
 
-from src.application.use_cases.generate_thumbnails import GenerateThumbnails
-from src.infrastructure.converters.raw_to_jpeg_converter import RawToJpegConverter
-from src.infrastructure.repositories.file_raw_image_repository import (
-    FileRawImageRepository,
-)
-from src.infrastructure.repositories.file_thumbnail_repository import (
-    FileThumbnailRepository,
-)
-from src.ui.cli.presenters.console_presenter import ConsolePresenter
+from src.ui.cli.commands.organize_command import OrganizeCommand
 from src.ui.config.app_config import AppConfig
 
 
 def main() -> None:
     """メイン関数"""
     parser = argparse.ArgumentParser(
-        description="RAW image organizer with automatic clustering"
+        description="RAW image organizer with automatic clustering",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # 基本的な使い方
+  %(prog)s /path/to/raw_images
+
+  # オプションを指定
+  %(prog)s /path/to/raw_images --size 512 --clusters-fine 50 --clusters-coarse 10
+
+  # Dry runモード（XMPを書き込まない）
+  %(prog)s /path/to/raw_images --dry-run
+
+  # 出力先を指定
+  %(prog)s /path/to/raw_images --output /path/to/output
+        """,
     )
-    parser.add_argument("directory", type=str, help="Directory containing RAW images")
+
+    # 必須引数
+    parser.add_argument(
+        "directory",
+        type=str,
+        help="Directory containing RAW images"
+    )
+
+    # オプション引数
     parser.add_argument(
         "--size",
         type=int,
         default=AppConfig.DEFAULT_THUMBNAIL_SIZE,
-        help=f"Thumbnail size (default: {AppConfig.DEFAULT_THUMBNAIL_SIZE})",
+        help=f"Thumbnail size in pixels (default: {AppConfig.DEFAULT_THUMBNAIL_SIZE})",
     )
     parser.add_argument(
         "--output",
@@ -35,45 +49,46 @@ def main() -> None:
         help=f"Output directory (default: {AppConfig.DEFAULT_OUTPUT_DIR})",
     )
     parser.add_argument(
-        "--clusters",
+        "--clusters-fine",
         type=int,
         default=AppConfig.DEFAULT_NUM_CLUSTERS,
-        help=f"Number of clusters (default: {AppConfig.DEFAULT_NUM_CLUSTERS})",
+        dest="clusters_fine",
+        help=f"Number of clusters for fine granularity (default: {AppConfig.DEFAULT_NUM_CLUSTERS})",
+    )
+    parser.add_argument(
+        "--clusters-coarse",
+        type=int,
+        default=AppConfig.DEFAULT_NUM_CLUSTERS // 2,
+        dest="clusters_coarse",
+        help=f"Number of clusters for coarse granularity (default: {AppConfig.DEFAULT_NUM_CLUSTERS // 2})",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        dest="dry_run",
+        help="Do not write XMP files, just show what would be done",
+    )
+    parser.add_argument(
+        "--model",
+        type=str,
+        default="resnet50",
+        choices=["resnet50"],
+        help="Model to use for feature extraction (default: resnet50)",
     )
 
     args = parser.parse_args()
 
-    # 設定を作成
-    config = AppConfig.from_args(args)
-    target_directory = Path(args.directory)
-
-    # ディレクトリの検証
-    if not target_directory.exists():
-        ConsolePresenter.show_error(f"Directory does not exist: {target_directory}")
-        sys.exit(1)
-
-    if not target_directory.is_dir():
-        ConsolePresenter.show_error(f"Path is not a directory: {target_directory}")
-        sys.exit(1)
-
-    # 依存性の構築
-    raw_repository = FileRawImageRepository()
-    thumbnail_repository = FileThumbnailRepository()
-    converter = RawToJpegConverter(output_dir=config.output_dir, size=config.thumbnail_size)
-
-    # ユースケースの実行
-    use_case = GenerateThumbnails(raw_repository, thumbnail_repository, converter)
-
+    # コマンドを実行
+    command = OrganizeCommand()
     try:
-        ConsolePresenter.show_info(f"Scanning directory: {target_directory}")
-        ConsolePresenter.show_info(f"Output directory: {config.output_dir}")
-        ConsolePresenter.show_info(f"Thumbnail size: {config.thumbnail_size}px")
-
-        thumbnails = use_case.execute(target_directory)
-        ConsolePresenter.show_thumbnails(thumbnails)
-
+        command.execute(args)
+    except KeyboardInterrupt:
+        print("\n\nInterrupted by user")
+        sys.exit(1)
     except Exception as e:
-        ConsolePresenter.show_error(str(e))
+        print(f"\n\n❌ Error: {e}")
+        import traceback
+        traceback.print_exc()
         sys.exit(1)
 
 

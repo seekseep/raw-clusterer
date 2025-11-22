@@ -6,7 +6,7 @@ from src.domain.models.raw_image import RawImage
 from src.infrastructure.converters.raw_to_jpeg_converter import RawToJpegConverter
 
 # テスト用RAW画像
-raw_path = Path("/Users/seekseep/Pictures/レタッチ/20251112_兵庫前期/DSC00762.ARW")
+raw_path = Path("test_data/raw_images")
 output_dir = Path("outputs/test_single")
 
 print(f"Testing with: {raw_path}")

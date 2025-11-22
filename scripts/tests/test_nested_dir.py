@@ -7,7 +7,7 @@ from src.domain.models.thumbnail import Thumbnail
 from src.infrastructure.converters.raw_to_jpeg_converter import RawToJpegConverter
 
 # テストケース：ネストしたディレクトリ構造を想定
-BASE_DIR = Path("/Users/seekseep/Pictures/レタッチ/20251112_兵庫前期")
+BASE_DIR = Path("test_data/raw_images")
 OUTPUT_DIR = Path("outputs/test_nested")
 
 # 仮想的なネストしたパス（実際のファイルを使用）
