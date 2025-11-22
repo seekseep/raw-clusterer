@@ -1,117 +1,166 @@
-# 📄 RAW 自動分類ツール 要件定義（Markdown版）
+# RAW Clusterer
 
-## 概要
+AIによるRAW画像の自動分類ツール
 
-本ツールは、macOS（M1）上で動作するローカル Python アプリケーションであり、
-指定されたディレクトリ以下の RAW 画像を自動的に検出し、
+## 目的
 
-1. **RAW → JPEG の縮小サムネイル生成**
-2. **画像特徴量の抽出とクラスタリング**
-3. **Lightroom 用 XMP メタデータへのタグ付与**
+大量のRAW写真を自動的に分類し、Adobe Lightroom Classicで「AIが判定した似たグループ」をキーワードとして利用できるようにすることで、人手での仕分け作業を大幅に軽減します。
 
-を一括で実行する。
+## できること
 
-ユーザーは CLI からディレクトリを一つ指定するだけで処理を開始できる。
+1. **RAW画像のサムネイル生成**
+   指定したディレクトリ以下のRAW画像（CR2, CR3, NEF, ARW, RAF, DNGなど）を自動検出し、JPEG（512px）サムネイルを生成します。
 
----
+2. **AI自動クラスタリング**
+   ResNet50で画像の特徴を抽出し、似た写真をグループ化します。HDBSCANによる自動クラスタリング、またはKMeansで指定したクラスタ数での分類が可能です。
 
-## 対象ファイル形式
-
-* RAW フォーマット
-  `CR2`, `CR3`, `NEF`, `ARW`, `RAF`, `DNG` など一般的な RAW を対象とする
-* RAW に対応する生成物
-
-  * 縮小 JPEG
-  * XMP メタデータ（存在しない場合は新規生成）
+3. **Lightroom用XMPタグ付け**
+   各RAW画像と同じ場所にXMPファイルを生成し、階層キーワード（`AI/cluster/fine/001`など）を付与します。Lightroomで「メタデータをファイルから読み込み」を実行すると、クラスタごとに写真を絞り込めます。
 
 ---
 
-## 全体フロー
+## インストール方法
 
-### 1. RAW → JPEG 変換
+### 1. リポジトリをクローン
 
-* 指定したディレクトリ以下を再帰的に探索し、すべての RAW ファイルを検出する。
-* 各 RAW を読み込み、長辺 512px 程度に縮小された JPEG を生成。
-* 出力構造は `thumbs/` 以下に RAW と同じ相対パスで保存する。
-* 使用ライブラリ：
-
-  * `rawpy`
-  * `Pillow`
-
----
-
-### 2. 画像特徴量の抽出・クラスタリング
-
-* 生成した JPEG 画像に対して、以下の処理を実行：
-
-  * ResNet50 または CLIP 系モデルによる画像埋め込み（特徴ベクトル）生成
-  * 特徴ベクトルを `embeddings.npy` + `meta.json` として保存
-  * `MiniBatchKMeans`（または HDBSCAN）でクラスタリング
-  * 各画像のクラスタID を `clusters.json` に保存
-* 特徴ベクトル次元は利用モデルに依存（例：2048次元）。
-
----
-
-### 3. XMP メタデータ作成／更新
-
-* `clusters.json` の結果に基づき、各 RAW に対応する `.xmp` を処理する。
-* XMP が存在しない場合は Lightroom が読める最小構造の XMP を新規生成する。
-* 以下のキーワードを XMP に追加する。
-
-  * `dc:subject` → `ai_cluster_003` など
-  * `lr:hierarchicalSubject` → `AI/cluster/003` など階層キーワード
-* 既存 XMP には追記する。重複キーワードは追加しない。
-* Lightroom Classic では「メタデータ → メタデータをファイルから読み込み」により同期できる。
-
----
-
-## CLI 仕様
-
-```
-python organizer.py /path/to/target_dir
+```bash
+git clone https://github.com/seekseep/raw-clusterer.git
+cd raw-clusterer
 ```
 
-### 引数
+### 2. 依存関係をインストール
 
-* 第一引数：RAW を含むディレクトリパス
-* オプション（任意）：
+```bash
+uv sync
+```
 
-  * `--size 512` → JPEG の長辺サイズ
-  * `--clusters 50` → KMeans のクラスタ数
-  * `--model resnet50` → 使用モデル指定
-  * `--dry-run` → XMP 書き込みなし
+### 3. 実行ファイルを準備
+
+```bash
+chmod +x bin/raw-clusterer
+```
+
+### 4. パスを通す（オプション）
+
+コマンドをどこからでも実行できるようにします：
+
+```bash
+# シンボリックリンクを作成
+sudo ln -s "$(pwd)/bin/raw-clusterer" /usr/local/bin/raw-clusterer
+```
+
+または、`.zshrc`や`.bashrc`にPATHを追加：
+
+```bash
+export PATH="$PATH:/path/to/raw-clusterer/bin"
+```
 
 ---
 
-## 出力物
+## 使い方
 
-* `thumbs/` 以下に生成される JPEG
-* `embeddings.npy`, `meta.json`
-* `clusters.json`
-* RAW と同階層に生成される `.xmp` ファイル
+### 基本的な使い方（推奨）
+
+```bash
+raw-clusterer . --min-cluster-size 2 --min-samples 1
+```
+
+カレントディレクトリのRAW画像を処理します。以下の処理が自動実行されます：
+
+1. サムネイル生成
+2. 特徴抽出
+3. クラスタリング（HDBSCANで自動）
+4. XMPファイル生成
+
+※ `--min-cluster-size 2 --min-samples 1` により、少数の写真でも効果的にクラスタリングできます。
+
+### よく使うオプション
+
+```bash
+# 別のディレクトリを指定
+raw-clusterer /path/to/raw_images --min-cluster-size 2 --min-samples 1
+
+# KMeansでクラスタ数を指定（細かい分類50個、粗い分類25個）
+raw-clusterer . --algorithm kmeans --clusters-fine 50 --clusters-coarse 25
+
+# HDBSCANのパラメータ調整（より大きなクラスタを作る）
+raw-clusterer . --min-cluster-size 10 --min-samples 5
+
+# XMPを書き込まずに結果だけ確認
+raw-clusterer . --min-cluster-size 2 --min-samples 1 --dry-run
+
+# 出力先を変更
+raw-clusterer . --min-cluster-size 2 --min-samples 1 --output /path/to/output
+```
+
+### 全オプション
+
+```
+usage: raw-clusterer [-h] [--size SIZE] [--output OUTPUT]
+                     [--algorithm {kmeans,hdbscan}]
+                     [--clusters-fine CLUSTERS_FINE]
+                     [--clusters-coarse CLUSTERS_COARSE]
+                     [--min-cluster-size MIN_CLUSTER_SIZE]
+                     [--min-samples MIN_SAMPLES]
+                     [--dry-run] [--model {resnet50}]
+                     directory
+
+オプション:
+  --size SIZE                   サムネイルサイズ（デフォルト: 512）
+  --output OUTPUT               出力先ディレクトリ
+  --algorithm {kmeans,hdbscan}  アルゴリズム（デフォルト: hdbscan）
+  --clusters-fine CLUSTERS_FINE クラスタ数（細）（デフォルト: 50、KMeansのみ）
+  --clusters-coarse CLUSTERS_COARSE クラスタ数（粗）（デフォルト: 25、KMeansのみ）
+  --min-cluster-size            HDBSCANの最小クラスタサイズ（デフォルト: 5）
+  --min-samples                 HDBSCANの最小サンプル数（デフォルト: 3）
+  --dry-run                     XMPを書き込まない（確認用）
+  --model {resnet50}            特徴抽出モデル（デフォルト: resnet50）
+```
+
+---
+
+## Lightroomでの利用方法
+
+1. Adobe Lightroom Classicを開く
+2. RAW画像のフォルダをカタログに追加（XMPファイルが同じ階層にあると自動的に読み込まれます）
+3. 左パネルの「キーワードリスト」に **AI/cluster** が表示されます
+   - `AI/cluster/fine/001`, `AI/cluster/fine/002`, ...（細かい分類）
+   - `AI/cluster/coarse/001`, `AI/cluster/coarse/002`, ...（粗い分類）
+4. キーワードをクリックして絞り込み、似た写真をまとめて確認・選別できます
+
+※ XMPファイルはRAW画像と同じディレクトリに自動生成されるため、Lightroomが自動的に認識します。手動でメタデータを読み込む必要はありません。
+
+---
+
+## 出力ファイル
+
+```
+/path/to/raw_images/
+├── DSC00001.ARW        # 元のRAW画像
+├── DSC00001.xmp        # ← 生成されたXMPファイル
+├── DSC00002.ARW
+├── DSC00002.xmp
+└── ...
+
+.raw_clusterer_cache/ （または --output で指定したディレクトリ）
+├── thumbs/             # サムネイル画像
+├── embeddings.npy      # 特徴ベクトル
+├── meta.json           # メタデータ
+├── clusters_fine.json  # 詳細クラスタ結果
+└── clusters_coarse.json # 粗いクラスタ結果
+```
 
 ---
 
 ## 動作環境
 
-* macOS (Apple Silicon / M1)
-* Python 3.10+
-* 使用ライブラリ
-  `rawpy`, `Pillow`, `torch`, `torchvision`, `scikit-learn`, `numpy`
+- macOS（Apple Silicon / M1推奨）
+- Python 3.10以上
+- 必要なライブラリ：rawpy, Pillow, PyTorch, scikit-learn, HDBSCAN
 
 ---
 
-## 目的
-
-大量の RAW 写真を自動的に分類し、Lightroom で「AI が判定した似たグループ」を
-キーワードとして利用できるようにすることで、人手での仕分け作業を大幅に軽減する。
-
-# 使用技術
-
-* Python 3.10+
-* uv
-
----
+# 技術詳細
 
 ## ディレクトリ構造（DDDレイヤー化アーキテクチャ）
 
@@ -215,80 +264,15 @@ raw-clusterer/
 
 ---
 
-## 使用方法
-
-### インストール
-
-```bash
-# 依存関係のインストール
-uv sync
-
-# 開発用依存関係も含める場合
-uv sync --extra dev
-```
-
-### 基本的な使い方
-
-```bash
-# RAW画像が含まれるディレクトリを指定
-uv run python -m src.ui.cli.main /path/to/raw_images
-```
-
-### オプション
-
-```bash
-# サムネイルサイズを指定（デフォルト: 512px）
-uv run python -m src.ui.cli.main /path/to/raw_images --size 512
-
-# クラスタ数を指定
-uv run python -m src.ui.cli.main /path/to/raw_images \
-  --clusters-fine 50 \    # 詳細度1のクラスタ数（デフォルト: 50）
-  --clusters-coarse 25    # 詳細度2のクラスタ数（デフォルト: 25）
-
-# 出力先を指定
-uv run python -m src.ui.cli.main /path/to/raw_images --output /path/to/output
-
-# Dry runモード（XMPファイルを実際には書き込まない）
-uv run python -m src.ui.cli.main /path/to/raw_images --dry-run
-```
-
-### 処理フロー
+## 処理フロー
 
 1. **サムネイル生成**: RAW画像をJPEG（512px）に変換
 2. **特徴抽出**: ResNet50で2048次元の特徴ベクトルを抽出
-3. **クラスタリング（詳細度1）**: ほぼ同じ被写体を細かく分類
-4. **クラスタリング（詳細度2）**: 同じ場所・似た被写体を粗く分類
+3. **クラスタリング（詳細）**: ほぼ同じ被写体を細かく分類
+4. **クラスタリング（粗）**: 同じ場所・似た被写体を粗く分類
 5. **XMP生成**: RAW画像と同階層にXMPファイルを作成
 
-### 出力ファイル
-
-```
-/path/to/raw_images/
-├── DSC00001.ARW        # 元のRAW画像
-├── DSC00001.xmp        # ← 生成されたXMPファイル
-├── DSC00002.ARW
-├── DSC00002.xmp
-└── ...
-
-outputs/ (または --output で指定したディレクトリ)
-├── thumbs/             # サムネイル画像
-│   ├── DSC00001.jpg
-│   └── ...
-├── embeddings.npy      # 特徴ベクトル
-├── meta.json           # メタデータ
-├── clusters_fine.json  # 詳細度1のクラスタ結果
-└── clusters_coarse.json # 詳細度2のクラスタ結果
-```
-
-### Lightroomでの使用
-
-1. Lightroom Classicを開く
-2. XMPファイルが生成されたディレクトリをカタログに追加
-3. メニューから **メタデータ → メタデータをファイルから読み込み** を選択
-4. キーワードリストで **AI/cluster** を確認
-   - `AI/cluster/fine/001`, `AI/cluster/fine/002`, ...
-   - `AI/cluster/coarse/001`, `AI/cluster/coarse/002`, ...
-5. キーワードで絞り込んで似た写真をまとめて確認・選別
+## 開発者向け情報
 
 ### テスト
 
@@ -304,3 +288,9 @@ uv run python scripts/tests/test_xmp_generation.py
 ```
 
 詳細は[scripts/README.md](scripts/README.md)を参照してください。
+
+### 開発用依存関係のインストール
+
+```bash
+uv sync --extra dev
+```
