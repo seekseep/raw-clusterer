@@ -40,10 +40,12 @@ env/
 outputs/
 thumbs/
 *.npy
-*.json
 clusters.json
 embeddings.npy
 meta.json
+
+# Test data
+test_data/
 
 # Test files
 .pytest_cache/

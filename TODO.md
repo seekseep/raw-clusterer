@@ -2,45 +2,19 @@
 
 ## 進行中のタスク
 
-なし
+### 2. 詳細度レベル1: とても近い写真（ほぼ同じ被写体）を判定する機能
+
+- [ ] 2.1 Domain層の実装 ← **進行中**
+  - [ ] 2.1.1 `Embedding`値オブジェクトの作成
+  - [ ] 2.1.2 `Cluster`エンティティの作成
+  - [ ] 2.1.3 `EmbeddingRepository`インターフェースの作成
+  - [ ] 2.1.4 `ClusterRepository`インターフェースの作成
+  - [ ] 2.1.5 `FeatureExtractionService`ドメインサービスの作成
+  - [ ] 2.1.6 `ClusteringService`ドメインサービスの作成
 
 ## 未着手のタスク
 
-### 1. RAWファイルをJPGに変換する機能
-
-- [ ] 1.1 Domain層の実装
-  - [ ] 1.1.1 `RawImage`エンティティの作成 (`src/domain/models/raw_image.py`)
-  - [ ] 1.1.2 `Thumbnail`エンティティの作成 (`src/domain/models/thumbnail.py`)
-  - [ ] 1.1.3 `RawImageRepository`インターフェースの作成 (`src/domain/repositories/raw_image_repository.py`)
-  - [ ] 1.1.4 `ThumbnailRepository`インターフェースの作成 (`src/domain/repositories/thumbnail_repository.py`)
-
-- [ ] 1.2 Infrastructure層の実装
-  - [ ] 1.2.1 `DirectoryScanner`の実装 (`src/infrastructure/file_system/directory_scanner.py`)
-  - [ ] 1.2.2 `RawToJpegConverter`の実装 (`src/infrastructure/converters/raw_to_jpeg_converter.py`)
-  - [ ] 1.2.3 `FileRawImageRepository`の実装 (`src/infrastructure/repositories/file_raw_image_repository.py`)
-  - [ ] 1.2.4 `FileThumbnailRepository`の実装 (`src/infrastructure/repositories/file_thumbnail_repository.py`)
-
-- [ ] 1.3 Application層の実装
-  - [ ] 1.3.1 `GenerateThumbnails`ユースケースの実装 (`src/application/use_cases/generate_thumbnails.py`)
-
-- [ ] 1.4 UI層の実装
-  - [ ] 1.4.1 CLI設定の実装 (`src/ui/config/app_config.py`)
-  - [ ] 1.4.2 `ConsolePresenter`の実装 (`src/ui/cli/presenters/console_presenter.py`)
-
-- [ ] 1.5 テストとコミット
-  - [ ] 1.5.1 単体テストの作成
-  - [ ] 1.5.2 動作確認
-  - [ ] 1.5.3 コミット（メッセージ: `feat: RAWファイルをJPEGサムネイルに変換する機能を実装`）
-
-### 2. 詳細度レベル1: とても近い写真（ほぼ同じ被写体）を判定する機能
-
-- [ ] 2.1 Domain層の実装
-  - [ ] 2.1.1 `Embedding`値オブジェクトの作成 (`src/domain/models/embedding.py`)
-  - [ ] 2.1.2 `Cluster`エンティティの作成 (`src/domain/models/cluster.py`)
-  - [ ] 2.1.3 `EmbeddingRepository`インターフェースの作成 (`src/domain/repositories/embedding_repository.py`)
-  - [ ] 2.1.4 `ClusterRepository`インターフェースの作成 (`src/domain/repositories/cluster_repository.py`)
-  - [ ] 2.1.5 `FeatureExtractionService`ドメインサービスの作成 (`src/domain/services/feature_extraction_service.py`)
-  - [ ] 2.1.6 `ClusteringService`ドメインサービスの作成（詳細度1用） (`src/domain/services/clustering_service.py`)
+### 2. 詳細度レベル1（続き）
 
 - [ ] 2.2 Infrastructure層の実装
   - [ ] 2.2.1 ResNet50モデルラッパーの実装 (`src/infrastructure/ml/models/resnet_model.py`)
@@ -138,7 +112,60 @@
 
 ## 完了したタスク
 
-なし
+### 2. 詳細度レベル1: とても近い写真（ほぼ同じ被写体）を判定する機能 ✅
+
+- [x] 2.1 Domain層の実装
+  - [x] 2.1.1 `Embedding`値オブジェクトの作成
+  - [x] 2.1.2 `Cluster`エンティティの作成
+  - [x] 2.1.3 `EmbeddingRepository`インターフェースの作成
+  - [x] 2.1.4 `ClusterRepository`インターフェースの作成
+  - [x] 2.1.5 `FeatureExtractionService`ドメインサービスの作成
+  - [x] 2.1.6 `ClusteringService`ドメインサービスの作成
+
+- [x] 2.2 Infrastructure層の実装
+  - [x] 2.2.1 ResNet50モデルラッパーの実装
+  - [x] 2.2.2 MiniBatchKMeansクラスタラーの実装
+  - [x] 2.2.3 `NumpyEmbeddingRepository`の実装
+  - [x] 2.2.4 `JsonClusterRepository`の実装
+
+- [x] 2.3 Application層の実装
+  - [x] 2.3.1 `ExtractFeatures`ユースケースの実装
+  - [x] 2.3.2 `ClusterImages`ユースケースの実装
+  - [x] 2.3.3 `ClusterResult` DTOの作成
+
+- [x] 2.4 UI層の実装
+  - [x] 2.4.1 クラスタリング結果の標準出力フォーマッターを`ConsolePresenter`に追加
+
+- [x] 2.5 テストと動作確認
+  - [x] 2.5.1 テストスクリプトの作成
+  - [x] 2.5.2 動作確認（10枚のARW画像で3クラスタ生成成功）
+  - [ ] 2.5.3 コミット待ち（メッセージ準備中）
+
+### 1. RAWファイルをJPGに変換する機能 ✅
+
+- [x] 1.1 Domain層の実装
+  - [x] 1.1.1 `RawImage`エンティティの作成
+  - [x] 1.1.2 `Thumbnail`エンティティの作成
+  - [x] 1.1.3 `RawImageRepository`インターフェースの作成
+  - [x] 1.1.4 `ThumbnailRepository`インターフェースの作成
+
+- [x] 1.2 Infrastructure層の実装
+  - [x] 1.2.1 `DirectoryScanner`の実装
+  - [x] 1.2.2 `RawToJpegConverter`の実装
+  - [x] 1.2.3 `FileRawImageRepository`の実装
+  - [x] 1.2.4 `FileThumbnailRepository`の実装
+
+- [x] 1.3 Application層の実装
+  - [x] 1.3.1 `GenerateThumbnails`ユースケースの実装
+
+- [x] 1.4 UI層の実装
+  - [x] 1.4.1 CLI設定の実装
+  - [x] 1.4.2 `ConsolePresenter`の実装
+
+- [x] 1.5 テストとコミット
+  - [x] 1.5.1 単体テストの作成
+  - [x] 1.5.2 動作確認（251枚のARWファイル検出、変換成功確認）
+  - [ ] 1.5.3 コミット待ち（メッセージ準備済み）
 
 ---
 

@@ -37,6 +37,26 @@ class Thumbnail:
         """サムネイルファイルが存在するか確認"""
         return self.path.exists()
 
+    def get_unique_id(self, base_dir: Optional[Path] = None) -> str:
+        """一意のIDを取得
+
+        Args:
+            base_dir: ベースディレクトリ（指定時は相対パス、未指定時はstemのみ）
+
+        Returns:
+            一意のID文字列
+        """
+        if base_dir:
+            try:
+                # ベースディレクトリからの相対パスを使用（拡張子なし）
+                relative_path = self.source.path.relative_to(base_dir)
+                return str(relative_path.with_suffix("")).replace("\\", "/")
+            except ValueError:
+                pass
+
+        # デフォルトはファイル名のみ（拡張子なし）
+        return self.source.stem
+
     def __eq__(self, other: object) -> bool:
         """等価性の比較"""
         if not isinstance(other, Thumbnail):

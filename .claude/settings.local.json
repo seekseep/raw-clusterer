@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find:*)",
+      "Bash(uv sync:*)",
+      "Bash(uv run pytest:*)",
+      "Bash(uv run:*)",
+      "Read(//Users/seekseep/Pictures/レタッチ/20251112_兵庫前期/**)",
+      "Bash(while read file)",
+      "Bash(do cp \"$file\" test_data/raw_images/)",
+      "Bash(done)",
+      "Bash(for i in {762..793})",
+      "Bash(do cp \"/Users/seekseep/Pictures/レタッチ/20251112_兵庫前期/DSC00$i.ARW\" test_data/raw_images/)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
