@@ -1,0 +1,10 @@
+#!/bin/bash
+# RAW Clusterer CLI wrapper script
+
+# このスクリプトのディレクトリを取得
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+# プロジェクトルートディレクトリ
+PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+
+# uvを使用してPythonプログラムを実行
+cd "$PROJECT_DIR" && uv run python -m src.ui.cli.main "$@"
