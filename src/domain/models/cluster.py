@@ -73,19 +73,19 @@ class Cluster:
         """クラスタのタグを生成
 
         Returns:
-            タグ文字列（例: "ai_cluster_fine_003", "ai_cluster_coarse_042"）
+            タグ文字列（例: "fine_003", "coarse_042"）
         """
         level_name = "fine" if self.granularity == 1 else "coarse"
-        return f"ai_cluster_{level_name}_{self.cluster_id:03d}"
+        return f"{level_name}_{self.cluster_id:03d}"
 
     def get_hierarchical_tag(self) -> str:
         """階層キーワードを生成
 
         Returns:
-            階層タグ文字列（例: "AI/cluster/fine/003", "AI/cluster/coarse/042"）
+            階層タグ文字列（例: "cluster/fine/003", "cluster/coarse/042"）
         """
         level_name = "fine" if self.granularity == 1 else "coarse"
-        return f"AI/cluster/{level_name}/{self.cluster_id:03d}"
+        return f"cluster/{level_name}/{self.cluster_id:03d}"
 
     def __eq__(self, other: object) -> bool:
         """等価性の比較"""

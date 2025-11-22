@@ -57,13 +57,13 @@ class XmpMetadata:
         """タグからキーワードを生成して追加
 
         Args:
-            tags: クラスタタグのリスト（例: ["ai_cluster_fine_001", "ai_cluster_coarse_002"]）
+            tags: クラスタタグのリスト（例: ["fine_001", "coarse_002"]）
         """
         for tag in tags:
             # 通常のキーワードとして追加
             self.add_keyword(tag)
 
-            # 階層キーワードとして追加（例: AI/cluster/fine/001）
+            # 階層キーワードとして追加（例: cluster/fine/001）
             hierarchical = self._tag_to_hierarchical(tag)
             self.add_hierarchical_keyword(hierarchical)
 
@@ -71,19 +71,19 @@ class XmpMetadata:
         """タグを階層キーワードに変換
 
         Args:
-            tag: タグ（例: "ai_cluster_fine_001"）
+            tag: タグ（例: "fine_001"）
 
         Returns:
-            階層キーワード（例: "AI/cluster/fine/001"）
+            階層キーワード（例: "cluster/fine/001"）
         """
-        # "ai_cluster_fine_001" -> ["ai", "cluster", "fine", "001"]
+        # "fine_001" -> ["fine", "001"]
         parts = tag.split("_")
 
-        if len(parts) >= 4 and parts[0] == "ai" and parts[1] == "cluster":
-            # AI/cluster/fine/001 の形式に変換
-            level = parts[2]  # "fine" or "coarse"
-            number = parts[3]  # "001"
-            return f"AI/cluster/{level}/{number}"
+        if len(parts) == 2 and parts[0] in ("fine", "coarse"):
+            # cluster/fine/001 の形式に変換
+            level = parts[0]  # "fine" or "coarse"
+            number = parts[1]  # "001"
+            return f"cluster/{level}/{number}"
 
         # パースできない場合はそのまま返す
         return tag
